@@ -6,6 +6,12 @@ import Admin from "@/models/Admin";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    console.log("📝 Admin signup request received:", {
+      ...body,
+      password: "[HIDDEN]",
+      adminKey: body.adminKey ? "[PROVIDED]" : "[MISSING]",
+    });
+
     const {
       name,
       email,
@@ -21,7 +27,14 @@ export async function POST(request: NextRequest) {
     // Validate admin key
     const ADMIN_KEY =
       process.env.ADMIN_AUTHORIZATION_KEY || "PRAKRITI_ADMIN_2024_SECURE_KEY";
+    console.log("🔑 Admin key validation:", {
+      provided: adminKey,
+      expected: ADMIN_KEY,
+      match: adminKey === ADMIN_KEY,
+    });
+
     if (adminKey !== ADMIN_KEY) {
+      console.log("❌ Admin key validation failed");
       return NextResponse.json(
         { error: "Invalid admin authorization key" },
         { status: 403 }
@@ -68,6 +81,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Create admin
+    console.log("💾 Creating admin account...");
     const admin = await Admin.create({
       name,
       email,
@@ -77,6 +91,12 @@ export async function POST(request: NextRequest) {
       employeeId,
       designation,
       workLocation,
+    });
+
+    console.log("✅ Admin account created successfully:", {
+      adminId: admin._id,
+      email: admin.email,
+      name: admin.name,
     });
 
     return NextResponse.json(

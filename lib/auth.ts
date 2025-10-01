@@ -7,11 +7,11 @@ import Doctor from "@/models/Doctor";
 import Admin from "@/models/Admin";
 import Receptionist from "@/models/Receptionist";
 
-// Helper function to find user in specific role collection first, then others
+// Helper function to find user in specific role collection ONLY when role is specified
 async function findUserByEmailAndRole(email: string, preferredRole?: string) {
   console.log("🔍 Searching for user:", { email, preferredRole });
 
-  // If a preferred role is specified, search that collection first
+  // If a preferred role is specified, search ONLY that collection
   if (preferredRole) {
     let user = null;
 
@@ -22,35 +22,42 @@ async function findUserByEmailAndRole(email: string, preferredRole?: string) {
           console.log("✅ Found in Receptionist collection");
           return { ...user.toObject(), role: "receptionist" };
         }
-        break;
+        console.log("❌ Not found in Receptionist collection");
+        return null;
+
       case "doctor":
         user = await Doctor.findOne({ email });
         if (user) {
           console.log("✅ Found in Doctor collection");
           return { ...user.toObject(), role: "doctor" };
         }
-        break;
+        console.log("❌ Not found in Doctor collection");
+        return null;
+
       case "admin":
         user = await Admin.findOne({ email });
         if (user) {
           console.log("✅ Found in Admin collection");
           return { ...user.toObject(), role: "admin" };
         }
-        break;
+        console.log("❌ Not found in Admin collection");
+        return null;
+
       case "user":
         user = await User.findOne({ email });
         if (user) {
           console.log("✅ Found in User collection");
           return { ...user.toObject(), role: "user" };
         }
-        break;
+        console.log("❌ Not found in User collection");
+        return null;
     }
   }
 
-  // If not found in preferred role, search all collections
-  console.log("🔍 Searching all collections...");
+  // Only search all collections if NO role preference is specified (fallback for regular login)
+  console.log("🔍 No role specified, searching all collections...");
 
-  // Try User collection
+  // Try User collection first (most common)
   let user = await User.findOne({ email });
   if (user) {
     console.log("✅ Found in User collection (fallback)");
@@ -95,6 +102,7 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         console.log("🔐 Login attempt:", {
           email: credentials?.email,
+          role: credentials?.role,
           hasPassword: !!credentials?.password,
         });
 
@@ -122,7 +130,15 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!user) {
-          console.log("❌ User not found in any collection");
+          console.log("❌ User not found in specified role collection");
+          return null;
+        }
+
+        // Additional role validation: ensure the found user's role matches the requested role
+        if (credentials.role && user.role !== credentials.role) {
+          console.log(
+            `❌ Role mismatch: found ${user.role}, expected ${credentials.role}`
+          );
           return null;
         }
 

@@ -78,10 +78,11 @@ export default function ChatbotPage() {
         usedRAG: data.usedRAG || false,
         sourcesCount: data.sourcesCount || 0,
       };
-      
+
       // Add fallback notice if needed
       if (data.fallback) {
-        botMsg.text += "\n\n💡 *Note: I'm currently running in fallback mode due to AI service issues.*";
+        botMsg.text +=
+          "\n\n💡 *Note: I'm currently running in fallback mode due to AI service issues.*";
       }
       setMessages((prev) => [...prev, botMsg]);
     } catch (error: any) {

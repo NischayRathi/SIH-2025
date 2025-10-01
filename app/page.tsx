@@ -9,9 +9,35 @@ export default function Home() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
+  // Function to get the appropriate dashboard URL based on user role
+  const getDashboardUrl = () => {
+    if (!session?.user) return "/dashboard";
+
+    const userRole = (session.user as any)?.role || "user";
+
+    switch (userRole) {
+      case "admin":
+        return "/admin/dashboard";
+      case "doctor":
+        return "/doctor/dashboard";
+      case "receptionist":
+        return "/receptionist/dashboard";
+      case "user":
+      default:
+        return "/dashboard";
+    }
+  };
+
   const handleFindCenter = () => {
-    if (status === "authenticated") {
-      router.push("/dashboard/nearby-centers");
+    if (status === "authenticated" && session) {
+      const userRole = (session.user as any)?.role || "user";
+
+      // For users, go to nearby centers; for staff, go to their main dashboard
+      if (userRole === "user") {
+        router.push("/dashboard/nearby-centers");
+      } else {
+        router.push(getDashboardUrl());
+      }
     } else {
       router.push("/login");
     }
@@ -25,7 +51,7 @@ export default function Home() {
         className="h-[90vh] bg-white/70 dark:bg-gray-900/70 backdrop-blur-sm bg-cover bg-center flex flex-col justify-center items-start px-8 md:px-20 text-left relative transition-colors"
         style={{ backgroundImage: `url("/div.png")` }}
       >
-        <div className="max-w-2xl p-6 rounded-md bg-white/80 dark:bg-gray-800/80 backdrop-blur-md">
+        <div className="max-w-2xl p-6">
           <h1 className="text-4xl md:text-5xl font-extrabold text-green-800 dark:text-green-300">
             Your Path to Authentic{" "}
             <span className="text-green-600 dark:text-green-400">
@@ -35,7 +61,11 @@ export default function Home() {
           </h1>
 
           {/* 👤 Personalized greeting if logged in */}
-          {status === "authenticated" ? (
+          {status === "loading" ? (
+            <p className="mt-3 text-lg text-gray-700 dark:text-gray-300">
+              <span className="animate-pulse">Loading...</span>
+            </p>
+          ) : status === "authenticated" && session ? (
             <p className="mt-3 text-lg text-gray-700 dark:text-gray-300">
               Welcome back,{" "}
               <span className="font-semibold">{session?.user?.name}</span> 👋

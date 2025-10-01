@@ -49,14 +49,14 @@ export default function ReceptionistLoginPage() {
         onSubmit={handleSubmit}
         className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl dark:shadow-2xl w-full max-w-md border dark:border-gray-700"
       >
-        <div className="flex items-center mb-6">
+        <div className="relative mb-8">
           <Link
             href="/staff"
-            className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="absolute left-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
           </Link>
-          <div className="text-center flex-1">
+          <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-100 dark:bg-purple-900/50 rounded-full mb-4">
               <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
             </div>
@@ -84,11 +84,11 @@ export default function ReceptionistLoginPage() {
           </div>
 
           <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-5 h-5" />
             <input
               type="password"
               placeholder="Password"
-              className="w-full text-gray-800 pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              className="w-full text-gray-800 dark:text-gray-100 bg-white dark:bg-gray-700 pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all placeholder-gray-500 dark:placeholder-gray-400"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -98,7 +98,7 @@ export default function ReceptionistLoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -113,16 +113,16 @@ export default function ReceptionistLoginPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-300">
             Need an account?{" "}
             <Link
               href="/receptionist/signup"
-              className="text-purple-600 hover:text-purple-700 font-semibold"
+              className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-semibold"
             >
               Register as Receptionist
             </Link>
           </p>
-          <div className="mt-4 text-sm text-gray-500">
+          <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
             Front desk staff only • Secure healthcare portal
           </div>
         </div>

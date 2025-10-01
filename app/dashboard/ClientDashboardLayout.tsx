@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import SessionDebug from "../components/SessionDebug";
 
 export default function ClientDashboardLayout({
   children,
@@ -58,9 +57,6 @@ export default function ClientDashboardLayout({
         {/* Page content */}
         <main className="flex-1 p-6 overflow-y-auto">{children}</main>
       </div>
-
-      {/* Debug info for development */}
-      <SessionDebug />
     </div>
   );
 }

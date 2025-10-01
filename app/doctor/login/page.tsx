@@ -49,14 +49,14 @@ export default function DoctorLoginPage() {
         onSubmit={handleSubmit}
         className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl dark:shadow-2xl w-full max-w-md border dark:border-gray-700"
       >
-        <div className="flex items-center mb-6">
+        <div className="relative mb-8">
           <Link
             href="/staff"
-            className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="absolute left-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
           </Link>
-          <div className="text-center flex-1">
+          <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 dark:bg-green-900/50 rounded-full mb-4">
               <Stethoscope className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>

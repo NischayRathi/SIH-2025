@@ -5,27 +5,55 @@ import { Pinecone } from "@pinecone-database/pinecone";
 
 // Fallback responses for when AI is unavailable
 const fallbackResponses = {
-  greeting: "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and wellness questions. How can I help you today?",
-  ayurveda: "Ayurveda is an ancient system of medicine from India that focuses on balancing mind, body, and spirit. It uses natural remedies, diet, lifestyle practices, and herbal treatments. The three doshas (Vata, Pitta, Kapha) are central concepts.",
+  greeting:
+    "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and wellness questions. How can I help you today?",
+  ayurveda:
+    "Ayurveda is an ancient system of medicine from India that focuses on balancing mind, body, and spirit. It uses natural remedies, diet, lifestyle practices, and herbal treatments. The three doshas (Vata, Pitta, Kapha) are central concepts.",
   yoga: "Yoga combines physical postures (asanas), breathing exercises (pranayama), and meditation for overall wellness. Start with basic poses and focus on proper breathing. Regular practice brings flexibility, strength, and mental clarity.",
-  meditation: "Meditation helps reduce stress and improve mental clarity. Start with 5-10 minutes daily, focusing on your breath. Sit comfortably, close your eyes, and gently return attention to breathing when your mind wanders.",
-  dosha: "The three doshas are Vata (air/space - movement), Pitta (fire/water - metabolism), and Kapha (earth/water - structure). Each person has a unique constitution with one or more dominant doshas.",
-  health: "For serious health concerns, please consult qualified healthcare professionals. Ayurveda emphasizes prevention through proper diet, daily routines, seasonal adjustments, and lifestyle practices suited to your constitution.",
-  herbs: "Common Ayurvedic herbs include turmeric (anti-inflammatory), ashwagandha (stress relief), triphala (digestion), and tulsi (immunity). Always consult a practitioner before using herbs medicinally.",
+  meditation:
+    "Meditation helps reduce stress and improve mental clarity. Start with 5-10 minutes daily, focusing on your breath. Sit comfortably, close your eyes, and gently return attention to breathing when your mind wanders.",
+  dosha:
+    "The three doshas are Vata (air/space - movement), Pitta (fire/water - metabolism), and Kapha (earth/water - structure). Each person has a unique constitution with one or more dominant doshas.",
+  health:
+    "For serious health concerns, please consult qualified healthcare professionals. Ayurveda emphasizes prevention through proper diet, daily routines, seasonal adjustments, and lifestyle practices suited to your constitution.",
+  herbs:
+    "Common Ayurvedic herbs include turmeric (anti-inflammatory), ashwagandha (stress relief), triphala (digestion), and tulsi (immunity). Always consult a practitioner before using herbs medicinally.",
   diet: "Ayurvedic nutrition emphasizes eating according to your dosha, seasonal foods, proper food combinations, and mindful eating. Warm, cooked foods are generally preferred over cold, raw foods.",
-  default: "I'm currently having technical difficulties accessing my full knowledge base. For detailed Ayurvedic guidance, I recommend consulting with a qualified Ayurvedic practitioner or referring to authentic texts."
+  default:
+    "I'm currently having technical difficulties accessing my full knowledge base. For detailed Ayurvedic guidance, I recommend consulting with a qualified Ayurvedic practitioner or referring to authentic texts.",
 };
 
 function getResponseKeywords(question: string): string {
   const q = question.toLowerCase();
-  if (q.includes("hello") || q.includes("hi") || q.includes("hey")) return "greeting";
+  if (q.includes("hello") || q.includes("hi") || q.includes("hey"))
+    return "greeting";
   if (q.includes("ayurveda") || q.includes("ayurvedic")) return "ayurveda";
-  if (q.includes("yoga") || q.includes("asana") || q.includes("pose")) return "yoga";
+  if (q.includes("yoga") || q.includes("asana") || q.includes("pose"))
+    return "yoga";
   if (q.includes("meditat") || q.includes("mindful")) return "meditation";
-  if (q.includes("dosha") || q.includes("vata") || q.includes("pitta") || q.includes("kapha")) return "dosha";
-  if (q.includes("health") || q.includes("wellness") || q.includes("sick") || q.includes("disease")) return "health";
-  if (q.includes("herb") || q.includes("medicine") || q.includes("remedy")) return "herbs";
-  if (q.includes("food") || q.includes("diet") || q.includes("nutrition") || q.includes("eat")) return "diet";
+  if (
+    q.includes("dosha") ||
+    q.includes("vata") ||
+    q.includes("pitta") ||
+    q.includes("kapha")
+  )
+    return "dosha";
+  if (
+    q.includes("health") ||
+    q.includes("wellness") ||
+    q.includes("sick") ||
+    q.includes("disease")
+  )
+    return "health";
+  if (q.includes("herb") || q.includes("medicine") || q.includes("remedy"))
+    return "herbs";
+  if (
+    q.includes("food") ||
+    q.includes("diet") ||
+    q.includes("nutrition") ||
+    q.includes("eat")
+  )
+    return "diet";
   return "default";
 }
 
@@ -43,7 +71,11 @@ const pinecone = new Pinecone({
 const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX_NAME!);
 
 // helper
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T> {
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 1000
+): Promise<T> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
@@ -60,11 +92,10 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000
   throw new Error("Max retries reached without success"); // ✅ ensures return
 }
 
-
 export async function POST(req: Request) {
   let question = "";
   let history: any[] = [];
-  
+
   try {
     const body = await req.json();
     question = body.question;
@@ -81,13 +112,13 @@ export async function POST(req: Request) {
     });
 
     const context = searchResults.matches
-  .map((m) => String(m.metadata?.text ?? "")) // safe string
-  .filter((t) => t.trim().length > 0)
-  .join("\n\n---\n\n");
+      .map((m) => String(m.metadata?.text ?? "")) // safe string
+      .filter((t) => t.trim().length > 0)
+      .join("\n\n---\n\n");
 
-const historyText = Array.isArray(history)
-  ? history.map((h: any) => `${h.sender}: ${h.text}`).join("\n")
-  : "";
+    const historyText = Array.isArray(history)
+      ? history.map((h: any) => `${h.sender}: ${h.text}`).join("\n")
+      : "";
     try {
       // system instruction
       const systemInstruction = `You are AyurBot, a knowledgeable and friendly AI assistant specializing in Ayurveda, yoga, and holistic health. 
@@ -110,9 +141,7 @@ Please provide a helpful response:`;
       // generate response
       const response = await withRetry(() =>
         model.generateContent({
-          contents: [
-            { role: "user", parts: [{ text: systemInstruction }] },
-          ],
+          contents: [{ role: "user", parts: [{ text: systemInstruction }] }],
           generationConfig: { temperature: 0.7, maxOutputTokens: 500 },
         })
       );
@@ -121,34 +150,38 @@ Please provide a helpful response:`;
         answer: response.response.text(),
         usedRAG: context.length > 0,
         sourcesCount: searchResults.matches.length,
-        fallback: false
+        fallback: false,
       });
     } catch (aiError: any) {
       console.log("AI API failed, using fallback response:", aiError.message);
-      
+
       // Use intelligent fallback based on question content
       const keyword = getResponseKeywords(question);
-      const fallbackAnswer = fallbackResponses[keyword as keyof typeof fallbackResponses] || fallbackResponses.default;
-      
+      const fallbackAnswer =
+        fallbackResponses[keyword as keyof typeof fallbackResponses] ||
+        fallbackResponses.default;
+
       return NextResponse.json({
         answer: fallbackAnswer,
         usedRAG: false,
         sourcesCount: 0,
-        fallback: true
+        fallback: true,
       });
     }
   } catch (error: any) {
     console.error("Chat API error:", error);
-    
+
     // Final fallback
     const keyword = getResponseKeywords(question);
-    const fallbackAnswer = fallbackResponses[keyword as keyof typeof fallbackResponses] || fallbackResponses.default;
-    
+    const fallbackAnswer =
+      fallbackResponses[keyword as keyof typeof fallbackResponses] ||
+      fallbackResponses.default;
+
     return NextResponse.json({
       answer: fallbackAnswer,
       usedRAG: false,
       sourcesCount: 0,
-      fallback: true
+      fallback: true,
     });
   }
 }

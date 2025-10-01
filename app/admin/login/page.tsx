@@ -3,7 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Shield, Mail } from "lucide-react";
+import { Loader2, Shield, Mail, ArrowLeft } from "lucide-react";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -57,16 +57,24 @@ export default function AdminLoginPage() {
         onSubmit={handleSubmit}
         className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl w-full max-w-md"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full mb-4">
-            <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+        <div className="relative mb-8">
+          <Link
+            href="/staff"
+            className="absolute left-0 top-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+          </Link>
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full mb-4">
+              <Shield className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+            </div>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+              Admin Login
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
+              Secure access for healthcare staff
+            </p>
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
-            Admin Login
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Secure access for healthcare staff
-          </p>
         </div>
 
         <div className="space-y-6">
@@ -113,12 +121,15 @@ export default function AdminLoginPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <Link
-            href="/login"
-            className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-semibold"
-          >
-            Patient Login
-          </Link>
+          <p className="text-gray-600 dark:text-gray-300">
+            Don't have an admin account?{" "}
+            <Link
+              href="/admin/signup"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold"
+            >
+              Register here
+            </Link>
+          </p>
           <div className="mt-4 text-sm text-gray-500 dark:text-gray-400">
             Admin access only • Secure healthcare portal
           </div>

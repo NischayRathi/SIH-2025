@@ -3,13 +3,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { Loader2, Lock, Mail, User } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -34,6 +35,39 @@ export default function LoginPage() {
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleGuestLogin() {
+    setError("");
+    setIsGuestLoading(true);
+
+    try {
+      // Create a guest session with predefined credentials
+      const res = await signIn("credentials", {
+        email: "guest@prakriti.com",
+        password: "guest123",
+        role: "user",
+        redirect: false,
+      });
+
+      console.log("Guest login response:", res);
+
+      if (res?.error) {
+        console.error("Guest login error:", res.error);
+        setError("Guest login failed. Please try again.");
+      } else if (res?.ok) {
+        console.log("Guest login successful, redirecting to dashboard");
+        router.push("/dashboard");
+      } else {
+        console.log("Guest login response unclear, attempting redirect");
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error("Guest login exception:", err);
+      setError("Guest login failed. Please try again.");
+    } finally {
+      setIsGuestLoading(false);
     }
   }
 
@@ -84,8 +118,8 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isLoading}
+            className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || isGuestLoading}
           >
             {isLoading ? (
               <>
@@ -94,6 +128,38 @@ export default function LoginPage() {
               </>
             ) : (
               "Sign In"
+            )}
+          </button>
+
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                or
+              </span>
+            </div>
+          </div>
+
+          {/* Guest Login Button */}
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="w-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300 dark:border-gray-600"
+            disabled={isLoading || isGuestLoading}
+          >
+            {isGuestLoading ? (
+              <>
+                <Loader2 className="animate-spin w-5 h-5 mr-2" />
+                Continuing as guest...
+              </>
+            ) : (
+              <>
+                <User className="w-5 h-5 mr-2" />
+                Continue as Guest
+              </>
             )}
           </button>
         </div>

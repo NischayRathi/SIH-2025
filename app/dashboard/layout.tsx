@@ -15,6 +15,24 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  // Check if user has the correct role for this dashboard
+  const userRole = (session.user as any)?.role || "user";
+
+  // Only users should access the main dashboard
+  if (userRole !== "user") {
+    // Redirect to appropriate dashboard based on role
+    switch (userRole) {
+      case "admin":
+        redirect("/admin/dashboard");
+      case "doctor":
+        redirect("/doctor/dashboard");
+      case "receptionist":
+        redirect("/receptionist/dashboard");
+      default:
+        redirect("/login");
+    }
+  }
+
   return <ClientDashboardLayout>{children}</ClientDashboardLayout>;
 }
 
