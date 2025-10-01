@@ -1,250 +1,355 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle, AlertCircle, Star } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import {
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  Pill,
+  Calendar,
+  User,
+  Filter,
+  Search,
+  Plus,
+  Bell,
+} from "lucide-react";
 
 interface Medicine {
-  id: number;
-  name: string;
-  details: string;
-  batch: string;
-  usage: string;
-  verified: boolean;
-  store: string;
-  rating: number;
-  price: string;
+  _id: string;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+  startDate: string;
+  endDate: string;
+  status: "active" | "completed" | "discontinued";
+  doctorId: {
+    _id: string;
+    name: string;
+    specialization: string;
+  };
+  reminderTimes: string[];
+  sideEffects?: string[];
 }
 
-const allMedicines: Medicine[] = [
-  {
-    id: 1,
-    name: "Ashwagandha Capsules",
-    details: "500mg - 60 Capsules",
-    batch: "XXXXXX01",
-    usage: "1 capsule twice daily",
-    verified: true,
-    store: "MedPlus Pharmacy",
-    rating: 4.8,
-    price: "₹299",
-  },
-  {
-    id: 2,
-    name: "Triphala Powder",
-    details: "100g Pack",
-    batch: "XXXXXX00",
-    usage: "1 tsp with warm water",
-    verified: false,
-    store: "Ayur Store",
-    rating: 4.2,
-    price: "₹180",
-  },
-  {
-    id: 3,
-    name: "Brahmi Oil",
-    details: "200ml Bottle",
-    batch: "XXXXXX02",
-    usage: "Head massage before sleep",
-    verified: true,
-    store: "Himalaya Store",
-    rating: 4.9,
-    price: "₹450",
-  },
-  {
-    id: 4,
-    name: "Tulsi Drops",
-    details: "30ml Bottle",
-    batch: "XXXXXX03",
-    usage: "5 drops in warm water daily",
-    verified: true,
-    store: "Ayurveda Plus",
-    rating: 4.7,
-    price: "₹120",
-  },
-  {
-    id: 5,
-    name: "Neem Tablets",
-    details: "250mg - 100 Tablets",
-    batch: "XXXXXX04",
-    usage: "2 tablets after meals",
-    verified: true,
-    store: "Organic Store",
-    rating: 4.6,
-    price: "₹210",
-  },
-  {
-    id: 6,
-    name: "Chyawanprash",
-    details: "500g Pack",
-    batch: "XXXXXX05",
-    usage: "1 tsp daily with milk",
-    verified: true,
-    store: "AyurStore",
-    rating: 4.5,
-    price: "₹350",
-  },
-  {
-    id: 7,
-    name: "Giloy Juice",
-    details: "1L Bottle",
-    batch: "XXXXXX06",
-    usage: "30ml with water twice daily",
-    verified: false,
-    store: "Herbal Life",
-    rating: 4.0,
-    price: "₹399",
-  },
-  {
-    id: 8,
-    name: "Shatavari Powder",
-    details: "200g Pack",
-    batch: "XXXXXX07",
-    usage: "1 tsp in warm milk",
-    verified: true,
-    store: "Nature’s Best",
-    rating: 4.4,
-    price: "₹275",
-  },
-  {
-    id: 9,
-    name: "Amla Capsules",
-    details: "500mg - 90 Capsules",
-    batch: "XXXXXX08",
-    usage: "1 capsule with water daily",
-    verified: true,
-    store: "Herbal World",
-    rating: 4.3,
-    price: "₹240",
-  },
-];
-
-
-const ITEMS_PER_PAGE = 6;
-
 export default function MedicinesPage() {
-  const [currentPage, setCurrentPage] = useState(1);
+  const { data: session } = useSession();
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddMedicine, setShowAddMedicine] = useState(false);
 
-  const totalPages = Math.ceil(allMedicines.length / ITEMS_PER_PAGE);
+  useEffect(() => {
+    loadMedicines();
+  }, []);
 
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentMedicines = allMedicines.slice(
-    startIndex,
-    startIndex + ITEMS_PER_PAGE
-  );
+  const loadMedicines = async () => {
+    try {
+      const response = await fetch("/api/medicines");
+      if (response.ok) {
+        const data = await response.json();
+        setMedicines(data);
+      }
+    } catch (error) {
+      console.error("Failed to load medicines:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateMedicineStatus = async (medicineId: string, status: string) => {
+    try {
+      const response = await fetch("/api/medicines", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ medicineId, status }),
+      });
+
+      if (response.ok) {
+        loadMedicines();
+      }
+    } catch (error) {
+      console.error("Failed to update medicine:", error);
+    }
+  };
+
+  const filteredMedicines = medicines.filter((medicine) => {
+    const matchesFilter = filter === "all" || medicine.status === filter;
+    const matchesSearch =
+      medicine.medicineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      medicine.doctorId.name.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="w-5 h-5 text-green-500" />;
+      case "discontinued":
+        return <AlertCircle className="w-5 h-5 text-red-500" />;
+      case "active":
+        return <Clock className="w-5 h-5 text-blue-500" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-yellow-500" />;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "discontinued":
+        return "bg-red-100 text-red-800";
+      case "active":
+        return "bg-blue-100 text-blue-800";
+      default:
+        return "bg-yellow-100 text-yellow-800";
+    }
+  };
+
+  const isDueToday = (reminderTimes: string[]) => {
+    const now = new Date();
+    const currentTime = now.getHours() * 60 + now.getMinutes();
+
+    return reminderTimes.some((time) => {
+      const [hours, minutes] = time.split(":").map(Number);
+      const reminderTime = hours * 60 + minutes;
+      return Math.abs(currentTime - reminderTime) <= 30; // Within 30 minutes
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-screen px-4 md:px-8 py-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-4">
-        <h2 className="text-xl md:text-2xl font-semibold text-green-700">Medicines</h2>
-        <p className="text-gray-600 text-sm md:text-base">Manage your prescribed medications</p>
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-3 text-green-700 mb-6">
-        <input
-          type="text"
-          placeholder="Search medicines..."
-          className="border text-green-700 px-4 py-2 rounded flex-1 w-full"
-        />
-        <select className="border px-3 py-2 rounded w-full md:w-auto">
-          <option>All Categories</option>
-          <option>Capsules</option>
-          <option>Powder</option>
-          <option>Oil</option>
-        </select>
-        <button className="px-4 py-2 bg-green-600 text-white rounded w-full md:w-auto">
-          Filter
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            My Medicines
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300">
+            Track your prescribed medications
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddMedicine(true)}
+          className="bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          Add Medicine
         </button>
       </div>
 
-      {/* Medicine Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-green-700">
-        {currentMedicines.map((m) => (
-          <div key={m.id} className="bg-white shadow rounded p-4 flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-base md:text-lg">{m.name}</h3>
-                {m.verified ? (
-                  <span className="flex items-center gap-1 text-green-700 bg-green-100 text-xs px-2 py-1 rounded">
-                    <CheckCircle size={14} /> Verified
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-red-700 bg-red-100 text-xs px-2 py-1 rounded">
-                    <AlertCircle size={14} /> Fake Alert
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-600">{m.details}</p>
-              <p className="text-xs text-gray-500">Batch number: {m.batch}</p>
-              <p className="text-xs text-gray-500 mb-3">Usage: {m.usage}</p>
-            </div>
-
-            <div className="border-t pt-3 mt-2">
-              <p className="text-sm text-gray-700">{m.store}</p>
-              <p className="flex items-center text-yellow-500 text-sm">
-                <Star size={14} fill="currentColor" /> {m.rating}
-              </p>
-              <div className="flex justify-between items-center mt-2">
-                <p className="font-bold text-green-700">{m.price}</p>
-                <button className="px-3 py-1 bg-green-600 text-white text-sm rounded">
-                  Buy Now
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      <div className="mt-8">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          {/* Previous */}
-          <button
-            className={`px-4 py-2 rounded w-full sm:w-auto ${
-              currentPage === 1
-                ? "text-gray-400 cursor-not-allowed"
-                : "text-gray-700 hover:bg-gray-100"
-            }`}
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-          >
-            Previous
-          </button>
-
-          {/* Page numbers */}
-          <div className="flex gap-2 flex-wrap justify-center">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1 rounded ${
-                  currentPage === page
-                    ? "bg-green-600 text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+      {/* Filters and Search */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow dark:shadow-xl p-6 border dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex gap-4">
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
               >
-                {page}
-              </button>
-            ))}
+                <option value="all">All Medicines</option>
+                <option value="active">Active</option>
+                <option value="completed">Completed</option>
+                <option value="discontinued">Discontinued</option>
+              </select>
+            </div>
           </div>
 
-          {/* Next */}
-          <button
-            className={`px-4 py-2 rounded w-full sm:w-auto ${
-              currentPage === totalPages
-                ? "text-gray-400 cursor-not-allowed"
-                : "text-gray-700 hover:bg-gray-100"
-            }`}
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-          >
-            Next
-          </button>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search medicines..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
+            />
+          </div>
         </div>
       </div>
+
+      {/* Medicines List */}
+      <div className="space-y-4">
+        {filteredMedicines.length === 0 ? (
+          <div className="bg-white rounded-lg shadow p-8 text-center">
+            <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No medicines found
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You don't have any medicines matching your current filter.
+            </p>
+            <button
+              onClick={() => setShowAddMedicine(true)}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium"
+            >
+              Add Your First Medicine
+            </button>
+          </div>
+        ) : (
+          filteredMedicines.map((medicine) => (
+            <div
+              key={medicine._id}
+              className="bg-white rounded-lg shadow hover:shadow-md transition-shadow"
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-green-100 rounded-full">
+                      <Pill className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                        {medicine.medicineName}
+                        {isDueToday(medicine.reminderTimes) && (
+                          <Bell className="w-4 h-4 text-orange-500 animate-bounce" />
+                        )}
+                      </h3>
+                      <p className="text-sm text-gray-600">{medicine.dosage}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(medicine.status)}
+                    <span
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                        medicine.status
+                      )}`}
+                    >
+                      {medicine.status.charAt(0).toUpperCase() +
+                        medicine.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Clock className="w-4 h-4" />
+                    <span>{medicine.frequency}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Calendar className="w-4 h-4" />
+                    <span>{medicine.duration}</span>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="w-4 h-4 text-gray-500" />
+                    <span className="text-sm text-gray-600">
+                      Prescribed by {medicine.doctorId.name} (
+                      {medicine.doctorId.specialization})
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">Instructions:</span>{" "}
+                    {medicine.instructions}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span>
+                      <span className="font-medium">Start:</span>{" "}
+                      {new Date(medicine.startDate).toLocaleDateString()}
+                    </span>
+                    <span>
+                      <span className="font-medium">End:</span>{" "}
+                      {new Date(medicine.endDate).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  {medicine.reminderTimes.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-sm font-medium text-gray-600">
+                        Reminders:{" "}
+                      </span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {medicine.reminderTimes.map((time, index) => (
+                          <span
+                            key={index}
+                            className={`px-2 py-1 text-xs rounded-full ${
+                              isDueToday([time])
+                                ? "bg-orange-100 text-orange-800"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {time}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {medicine.sideEffects && medicine.sideEffects.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-sm font-medium text-gray-600">
+                        Side Effects:{" "}
+                      </span>
+                      <span className="text-sm text-red-600">
+                        {medicine.sideEffects.join(", ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {medicine.status === "active" && (
+                  <div className="flex gap-2 mt-4 pt-4 border-t">
+                    <button
+                      onClick={() =>
+                        updateMedicineStatus(medicine._id, "completed")
+                      }
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      Mark Complete
+                    </button>
+                    <button
+                      onClick={() =>
+                        updateMedicineStatus(medicine._id, "discontinued")
+                      }
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium"
+                    >
+                      Discontinue
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add Medicine Modal - Show placeholder for now */}
+      {showAddMedicine && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Add Medicine</h3>
+            <p className="text-gray-600 mb-4">
+              Medicine addition form will be implemented soon.
+            </p>
+            <button
+              onClick={() => setShowAddMedicine(false)}
+              className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
-

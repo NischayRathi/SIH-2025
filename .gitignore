@@ -24,6 +24,13 @@
 .DS_Store
 *.pem
 
+# Windows Zone.Identifier files
+*:Zone.Identifier
+
+# Google Cloud SDK
+google-cloud-sdk/
+google-cloud-sdk-*.tar.gz
+
 # debug
 npm-debug.log*
 yarn-debug.log*

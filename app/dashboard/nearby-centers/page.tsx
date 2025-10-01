@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import dynamic from "next/dynamic";
 
 const LeafletMap = dynamic(() => import("../../components/LeafletMap"), {
@@ -33,24 +33,37 @@ const centers = [
 export default function NearbyCentersPage() {
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-green-700">Nearby Centers</h2>
+      <h2 className="text-xl font-semibold text-green-700 dark:text-green-400">
+        Nearby Centers
+      </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* List */}
         <div className="space-y-4">
           {centers.map((c) => (
-            <div key={c.id} className="bg-white shadow rounded p-4">
-              <h3 className="font-semibold">{c.name}</h3>
-              <p className="text-sm text-gray-600">{c.desc}</p>
-              <p className="text-yellow-500 mt-1">
+            <div
+              key={c.id}
+              className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl rounded p-4 border dark:border-gray-700"
+            >
+              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                {c.name}
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                {c.desc}
+              </p>
+              <p className="text-yellow-500 dark:text-yellow-400 mt-1">
                 {"★".repeat(Math.round(c.rating))}{" "}
-                <span className="text-gray-600">
+                <span className="text-gray-600 dark:text-gray-300">
                   {c.rating} ({c.reviews} reviews)
                 </span>
               </p>
-              <p className="text-sm text-gray-500 mt-1">{c.distance}</p>
-              <p className="text-green-700 font-medium">{c.price}</p>
-              <button className="mt-2 w-full bg-green-600 text-white py-2 rounded">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {c.distance}
+              </p>
+              <p className="text-green-700 dark:text-green-400 font-medium">
+                {c.price}
+              </p>
+              <button className="mt-2 w-full bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white py-2 rounded transition-colors">
                 Book Appointment
               </button>
             </div>
@@ -58,8 +71,10 @@ export default function NearbyCentersPage() {
         </div>
 
         {/* Map */}
-        <div className="bg-white shadow rounded p-4">
-          <h3 className="font-semibold mb-2">Map View</h3>
+        <div className="bg-white dark:bg-gray-800 shadow-lg dark:shadow-xl rounded p-4 border dark:border-gray-700">
+          <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">
+            Map View
+          </h3>
           <LeafletMap centers={centers} />
         </div>
       </div>
