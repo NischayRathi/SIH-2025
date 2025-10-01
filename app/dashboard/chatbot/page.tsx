@@ -20,6 +20,7 @@ export default function ChatbotPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loadingChats, setLoadingChats] = useState<Set<string>>(new Set());
+  const [isSending, setIsSending] = useState(false); // Prevent duplicate sends
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentChatId = chatContext?.currentChatId;
@@ -185,10 +186,13 @@ export default function ChatbotPage() {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isSending) return;
 
+    setIsSending(true); // Prevent duplicate sends
     const currentInput = input;
-    let chatId = currentChatId;
+    // Capture the current chat ID at the start to prevent race conditions
+    let targetChatId = currentChatId;
+    const messageSnapshot = [...messages]; // Capture current messages for this request
 
     const userMessage: Message = {
       sender: "user",
@@ -202,28 +206,28 @@ export default function ChatbotPage() {
 
     try {
       // If no chat exists, create one with the first message as title
-      if (!currentChatId) {
+      if (!targetChatId) {
         // Set loading for new chat creation
         setLoadingForChat(null, true);
-        chatId = await createNewChatWithMessage(currentInput, userMessage);
-        if (!chatId) {
+        targetChatId = await createNewChatWithMessage(currentInput, userMessage);
+        if (!targetChatId) {
           setLoadingForChat(null, false);
           return;
         }
         // Update loading to the actual chat ID after creation
         setLoadingForChat(null, false);
-        setLoadingForChat(chatId, true);
+        setLoadingForChat(targetChatId, true);
       } else {
         // Set loading for existing chat
-        setLoadingForChat(chatId, true);
+        setLoadingForChat(targetChatId, true);
         // Add user message to existing chat session
-        if (isGuest || chatId?.startsWith("guest_")) {
+        if (isGuest || targetChatId?.startsWith("guest_")) {
           // For guest users, save to localStorage
-          const currentMessages = [...messages, userMessage];
-          saveGuestChat(chatId!, currentMessages);
+          const currentMessages = [...messageSnapshot, userMessage];
+          saveGuestChat(targetChatId!, currentMessages);
         } else {
           // For registered users, save to database
-          await fetch(`/api/chats/${chatId}`, {
+          await fetch(`/api/chats/${targetChatId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -239,7 +243,7 @@ export default function ChatbotPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: currentInput,
-          history: messages,
+          history: messageSnapshot, // Use the snapshot, not current messages
         }),
       });
 
@@ -253,14 +257,20 @@ export default function ChatbotPage() {
           sourcesCount: data.sourcesCount,
         };
 
-        // Add bot message to chat session
-        if (isGuest || chatId?.startsWith("guest_")) {
+        // Only add bot message to UI if we're still on the same chat
+        // This prevents race condition where user switches chats mid-request
+        if (currentChatId === targetChatId) {
+          setMessages((prev) => [...prev, botMessage]);
+        }
+
+        // Always save to the target chat regardless of current UI state
+        if (isGuest || targetChatId?.startsWith("guest_")) {
           // For guest users, save to localStorage
-          const updatedMessages = [...messages, userMessage, botMessage];
-          saveGuestChat(chatId!, updatedMessages);
+          const updatedMessages = [...messageSnapshot, userMessage, botMessage];
+          saveGuestChat(targetChatId!, updatedMessages);
         } else {
           // For registered users, save to database
-          await fetch(`/api/chats/${chatId}`, {
+          await fetch(`/api/chats/${targetChatId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -268,19 +278,21 @@ export default function ChatbotPage() {
             }),
           });
         }
-
-        setMessages((prev) => [...prev, botMessage]);
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      const errorMessage: Message = {
-        sender: "bot",
-        text: "Sorry, I encountered an error. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Only show error in UI if we're still on the same chat
+      if (currentChatId === targetChatId) {
+        const errorMessage: Message = {
+          sender: "bot",
+          text: "Sorry, I encountered an error. Please try again.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
-      setLoadingForChat(chatId, false);
+      setLoadingForChat(targetChatId, false);
+      setIsSending(false); // Re-enable sending
     }
   };
 
@@ -383,14 +395,18 @@ export default function ChatbotPage() {
             className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            onKeyDown={(e) => e.key === "Enter" && !isSending && handleSend()}
           />
           <button
             onClick={handleSend}
             className="bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            disabled={isCurrentChatLoading || !input.trim()}
+            disabled={isCurrentChatLoading || !input.trim() || isSending}
           >
-            <Send size={18} />
+            {isSending ? (
+              <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+            ) : (
+              <Send size={18} />
+            )}
           </button>
         </div>
       </div>
