@@ -131,18 +131,8 @@ export default function ChatbotPage() {
                   <span className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
                     <Bot size={14} /> AyurBot
                   </span>
-                  {msg.usedRAG && msg.sourcesCount && msg.sourcesCount > 0 && (
-                    <span className="text-xs bg-green-100 dark:bg-green-800 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
-                      📚 {msg.sourcesCount} sources
-                    </span>
-                  )}
                 </div>
                 <p className="text-gray-900 dark:text-gray-100">{msg.text}</p>
-                {msg.usedRAG && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
-                    ✨ Enhanced with authentic Ayurvedic knowledge
-                  </p>
-                )}
               </div>
             ) : (
               <div className="bg-green-600 dark:bg-green-500 text-white p-3 rounded-lg max-w-[70%] text-sm">
