@@ -38,7 +38,7 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
             )}
           </button>
           <h2 className="text-xl text-green-700 dark:text-green-400 font-semibold">
-            Dashboard
+            Prakriti
           </h2>
         </div>
         <div className="flex items-center gap-4">
@@ -80,7 +80,7 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
           )}
         </button>
         <h2 className="text-xl text-green-700 dark:text-green-400 font-semibold">
-          Dashboard
+          Prakriti
         </h2>
       </div>
 

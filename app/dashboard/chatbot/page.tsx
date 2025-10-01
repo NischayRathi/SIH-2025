@@ -1,171 +1,398 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bot, Send } from "lucide-react";
+import { Bot, Send, MessageSquare } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { useChatContext } from "../ClientDashboardLayout";
 
 interface Message {
-  id: number;
+  _id?: string;
   sender: "bot" | "user";
   text: string;
-  time?: string;
+  timestamp: Date;
   usedRAG?: boolean;
   sourcesCount?: number;
 }
 
 export default function ChatbotPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      sender: "bot",
-      text: "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and holistic wellness. I have access to traditional knowledge about doshas, herbs, treatments, meditation, and natural health practices. How can I help you today?",
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    },
-  ]);
+  const { data: session } = useSession();
+  const chatContext = useChatContext();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingChats, setLoadingChats] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const currentChatId = chatContext?.currentChatId;
+  const isCurrentChatLoading = currentChatId
+    ? loadingChats.has(currentChatId)
+    : loadingChats.has("newchat");
+
+  const isGuest = !session?.user;
+
+  // Helper functions for managing loading state per chat
+  const setLoadingForChat = (
+    chatId: string | null | undefined,
+    isLoading: boolean
+  ) => {
+    const id = chatId || "newchat";
+    setLoadingChats((prev) => {
+      const newSet = new Set(prev);
+      if (isLoading) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+  // Guest chat management functions
+  const saveGuestChat = (chatId: string, messages: Message[]) => {
+    if (isGuest && typeof window !== "undefined") {
+      const guestChats = JSON.parse(localStorage.getItem("guestChats") || "{}");
+      guestChats[chatId] = {
+        messages,
+        updatedAt: new Date().toISOString(),
+      };
+      localStorage.setItem("guestChats", JSON.stringify(guestChats));
+    }
+  };
+
+  const loadGuestChat = (chatId: string): Message[] => {
+    if (isGuest && typeof window !== "undefined") {
+      const guestChats = JSON.parse(localStorage.getItem("guestChats") || "{}");
+      return guestChats[chatId]?.messages || [];
+    }
+    return [];
+  };
+
+  const clearAllGuestChats = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("guestChats");
+    }
+  };
+
+  // Show default AyurBot welcome message when no chat is selected
+  useEffect(() => {
+    if (!currentChatId) {
+      setMessages([
+        {
+          sender: "bot",
+          text: "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and holistic wellness. I have access to traditional knowledge about doshas, herbs, treatments, meditation, and natural health practices. How can I help you today?",
+          timestamp: new Date(),
+        },
+      ]);
+    }
+  }, [currentChatId]);
+
+  // Load messages when currentChatId changes
+  useEffect(() => {
+    if (currentChatId) {
+      loadChatMessages(currentChatId);
+    }
+    // Clear the "newchat" loading state when switching to an existing chat
+    if (currentChatId) {
+      setLoadingChats((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete("newchat");
+        return newSet;
+      });
+    }
+  }, [currentChatId]);
+
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-
-    const newUserMsg: Message = {
-      id: Date.now(),
-      sender: "user",
-      text: input,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-    setMessages((prev) => [...prev, newUserMsg]);
-    setInput("");
-    setLoading(true);
-
+  const loadChatMessages = async (chatId: string) => {
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: input,
-          history: messages.map((msg) => ({
-            sender: msg.sender,
-            text: msg.text,
-          })),
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`API error: ${res.status}`);
+      if (isGuest || chatId.startsWith("guest_")) {
+        // For guest users, load from localStorage
+        const guestMessages = loadGuestChat(chatId);
+        setMessages(guestMessages);
+        return;
       }
 
-      const data = await res.json();
-
-      if (data.error) {
-        throw new Error(data.error);
+      // For registered users, load from database
+      const response = await fetch(`/api/chats/${chatId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.chatSession?.messages || []);
       }
-
-      const botMsg: Message = {
-        id: Date.now() + 1,
-        sender: "bot",
-        text: data.answer || "Sorry, I couldn't find an answer.",
-        usedRAG: data.usedRAG || false,
-        sourcesCount: data.sourcesCount || 0,
-      };
-
-      // Add fallback notice if needed
-      if (data.fallback) {
-        botMsg.text +=
-          "\n\n💡 *Note: I'm currently running in fallback mode due to AI service issues.*";
-      }
-      setMessages((prev) => [...prev, botMsg]);
-    } catch (error: any) {
-      console.error("Chatbot error:", error);
-
-      let errorMessage =
-        "⚠️ Sorry, I'm having trouble right now. Please try again.";
-
-      if (error.message.includes("API key")) {
-        errorMessage =
-          "⚠️ Configuration issue detected. Please contact support.";
-      } else if (error.message.includes("quota")) {
-        errorMessage =
-          "⚠️ Service temporarily unavailable. Please try again later.";
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now() + 2,
-          sender: "bot",
-          text: errorMessage,
-        },
-      ]);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Error loading messages:", error);
     }
   };
 
+  const createNewChatWithMessage = async (
+    firstMessage: string,
+    userMessage: Message
+  ) => {
+    try {
+      const title =
+        firstMessage.slice(0, 50) + (firstMessage.length > 50 ? "..." : "");
+
+      if (isGuest) {
+        // For guest users, create a local chat session
+        const guestChatId = `guest_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const initialMessages = [
+          {
+            sender: "bot" as const,
+            text: "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and holistic wellness. I have access to traditional knowledge about doshas, herbs, treatments, meditation, and natural health practices. How can I help you today?",
+            timestamp: new Date(),
+          },
+          userMessage,
+        ];
+
+        // Save to localStorage
+        saveGuestChat(guestChatId, initialMessages);
+
+        chatContext?.onChatSelect(guestChatId);
+        chatContext?.refreshChats();
+        return guestChatId;
+      }
+
+      // For registered users, use database
+      const response = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+
+        // Add the user message to the newly created chat
+        await fetch(`/api/chats/${data.chatSession._id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: userMessage,
+          }),
+        });
+
+        chatContext?.onChatSelect(data.chatSession._id);
+        chatContext?.refreshChats();
+        return data.chatSession._id;
+      }
+    } catch (error) {
+      console.error("Error creating chat with message:", error);
+    }
+    return null;
+  };
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const currentInput = input;
+    let chatId = currentChatId;
+
+    const userMessage: Message = {
+      sender: "user",
+      text: currentInput,
+      timestamp: new Date(),
+    };
+
+    // Add user message to UI immediately
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+
+    try {
+      // If no chat exists, create one with the first message as title
+      if (!currentChatId) {
+        // Set loading for new chat creation
+        setLoadingForChat(null, true);
+        chatId = await createNewChatWithMessage(currentInput, userMessage);
+        if (!chatId) {
+          setLoadingForChat(null, false);
+          return;
+        }
+        // Update loading to the actual chat ID after creation
+        setLoadingForChat(null, false);
+        setLoadingForChat(chatId, true);
+      } else {
+        // Set loading for existing chat
+        setLoadingForChat(chatId, true);
+        // Add user message to existing chat session
+        if (isGuest || chatId?.startsWith("guest_")) {
+          // For guest users, save to localStorage
+          const currentMessages = [...messages, userMessage];
+          saveGuestChat(chatId!, currentMessages);
+        } else {
+          // For registered users, save to database
+          await fetch(`/api/chats/${chatId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: userMessage,
+            }),
+          });
+        }
+      }
+
+      // Get AI response
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: currentInput,
+          history: messages,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const botMessage: Message = {
+          sender: "bot",
+          text: data.answer,
+          timestamp: new Date(),
+          usedRAG: data.usedRAG,
+          sourcesCount: data.sourcesCount,
+        };
+
+        // Add bot message to chat session
+        if (isGuest || chatId?.startsWith("guest_")) {
+          // For guest users, save to localStorage
+          const updatedMessages = [...messages, userMessage, botMessage];
+          saveGuestChat(chatId!, updatedMessages);
+        } else {
+          // For registered users, save to database
+          await fetch(`/api/chats/${chatId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: botMessage,
+            }),
+          });
+        }
+
+        setMessages((prev) => [...prev, botMessage]);
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
+        sender: "bot",
+        text: "Sorry, I encountered an error. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoadingForChat(chatId, false);
+    }
+  };
+
+  // Cleanup guest chats on component mount and when logout occurs
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Check for recent logout timestamp
+      const lastLogoutTime = localStorage.getItem("lastLogoutTime");
+      const lastGuestChatCheck = localStorage.getItem("lastGuestChatCheck");
+
+      if (lastLogoutTime) {
+        const logoutTime = parseInt(lastLogoutTime);
+        const lastCheckTime = lastGuestChatCheck
+          ? parseInt(lastGuestChatCheck)
+          : 0;
+
+        // If logout happened after last check, clear guest chats
+        if (logoutTime > lastCheckTime) {
+          clearAllGuestChats();
+          localStorage.setItem("lastGuestChatCheck", Date.now().toString());
+          // Force refresh of chat list
+          chatContext?.refreshChats();
+        }
+      }
+    }
+  }, []); // Run only on mount
+
+  // Additional cleanup when session changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && !session?.user) {
+      // Check for recent logout when becoming guest
+      const lastLogoutTime = localStorage.getItem("lastLogoutTime");
+      const lastGuestChatCheck = localStorage.getItem("lastGuestChatCheck");
+
+      if (lastLogoutTime) {
+        const logoutTime = parseInt(lastLogoutTime);
+        const lastCheckTime = lastGuestChatCheck
+          ? parseInt(lastGuestChatCheck)
+          : 0;
+
+        // If logout happened after last check, clear guest chats
+        if (logoutTime > lastCheckTime) {
+          clearAllGuestChats();
+          localStorage.setItem("lastGuestChatCheck", Date.now().toString());
+          chatContext?.refreshChats();
+        }
+      }
+    }
+  }, [session, chatContext]);
+
   return (
-    <div className="flex flex-col h-[85vh] bg-gray-50 dark:bg-gray-800 rounded-lg shadow dark:shadow-xl p-4 border dark:border-gray-700">
-      <h2 className="text-xl font-semibold mb-2 text-black dark:text-gray-100">
-        AI Health Assistant
-      </h2>
-      <div className="flex-1 overflow-y-auto space-y-4 p-2 text-black dark:text-gray-100">
-        {messages.map((msg) => (
+    <div className="flex flex-col bg-white dark:bg-gray-800 -m-6 h-[calc(100vh-64px)]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
+        {messages.map((msg, index) => (
           <div
-            key={msg.id}
+            key={index}
             className={`flex ${
               msg.sender === "user" ? "justify-end" : "justify-start"
             }`}
           >
             {msg.sender === "bot" ? (
-              <div className="bg-white dark:bg-gray-700 shadow dark:shadow-lg p-3 rounded-lg max-w-[70%] text-sm border dark:border-gray-600">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
-                    <Bot size={14} /> AyurBot
-                  </span>
+              <div className="bg-white dark:bg-gray-800 shadow-lg p-4 rounded-xl max-w-[70%] border dark:border-gray-700">
+                <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium mb-2">
+                  <Bot size={16} /> AyurBot
                 </div>
-                <p className="text-gray-900 dark:text-gray-100">{msg.text}</p>
+                <p className="text-gray-900 dark:text-gray-100 leading-relaxed">
+                  {msg.text}
+                </p>
               </div>
             ) : (
-              <div className="bg-green-600 dark:bg-green-500 text-white p-3 rounded-lg max-w-[70%] text-sm">
-                {msg.text}
+              <div className="bg-green-600 dark:bg-green-500 text-white p-4 rounded-xl max-w-[70%] shadow-lg">
+                <p className="leading-relaxed">{msg.text}</p>
               </div>
             )}
           </div>
         ))}
-        {loading && (
-          <div className="text-gray-400 dark:text-gray-500 text-sm space-y-1">
-            <p>🔍 Searching Ayurvedic knowledge base...</p>
-            <p>AyurBot is preparing your response...</p>
+        {isCurrentChatLoading && (
+          <div className="flex justify-start">
+            <div className="bg-white dark:bg-gray-800 shadow-lg p-4 rounded-xl border dark:border-gray-700">
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-medium mb-2">
+                <Bot size={16} /> AyurBot
+              </div>
+              <div className="text-gray-600 dark:text-gray-400 space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
+                  <p>Searching Ayurvedic knowledge base...</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="mt-3 flex gap-2">
-        <input
-          type="text"
-          placeholder="Ask about doshas, herbs, treatments, yoga, meditation..."
-          className="flex-1 border border-gray-300 dark:border-gray-600 rounded px-4 py-2 text-black dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button
-          onClick={handleSend}
-          className="bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-          disabled={loading}
-        >
-          <Send size={18} />
-        </button>
+      <div className="p-4 border-t dark:border-gray-700 bg-white dark:bg-gray-800">
+        <div className="flex gap-3">
+          <input
+            type="text"
+            placeholder="Ask about doshas, herbs, treatments, yoga, meditation..."
+            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          />
+          <button
+            onClick={handleSend}
+            className="bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white px-6 py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+            disabled={isCurrentChatLoading || !input.trim()}
+          >
+            <Send size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
