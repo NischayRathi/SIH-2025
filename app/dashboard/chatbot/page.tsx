@@ -17,7 +17,7 @@ export default function ChatbotPage() {
     {
       id: 1,
       sender: "bot",
-      text: "🙏 Namaste! I'm AyurBot, your specialized Ayurvedic AI assistant with access to authentic Ayurvedic knowledge. I can help you with doshas, herbs, treatments, yoga, meditation, and traditional wellness practices. What would you like to explore today?",
+      text: "Hello! I'm AyurBot, your AI assistant for Ayurveda, yoga, and holistic wellness. I have access to traditional knowledge about doshas, herbs, treatments, meditation, and natural health practices. How can I help you today?",
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
         minute: "2-digit",
@@ -78,6 +78,11 @@ export default function ChatbotPage() {
         usedRAG: data.usedRAG || false,
         sourcesCount: data.sourcesCount || 0,
       };
+      
+      // Add fallback notice if needed
+      if (data.fallback) {
+        botMsg.text += "\n\n💡 *Note: I'm currently running in fallback mode due to AI service issues.*";
+      }
       setMessages((prev) => [...prev, botMsg]);
     } catch (error: any) {
       console.error("Chatbot error:", error);
