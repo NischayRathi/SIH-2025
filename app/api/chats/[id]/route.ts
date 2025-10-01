@@ -7,16 +7,17 @@ import ChatSession from "@/models/ChatSession";
 // GET /api/chats/[id] - Get a specific chat session
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const session = await getServerSession(authOptions);
 
     // For guest users or guest chat IDs, return empty (client handles guest chats)
-    if (!session?.user || params.id.startsWith("guest_")) {
+    if (!session?.user || resolvedParams.id.startsWith("guest_")) {
       return NextResponse.json({
         chatSession: {
-          _id: params.id,
+          _id: resolvedParams.id,
           messages: [],
           isGuest: true,
         },
@@ -26,7 +27,7 @@ export async function GET(
     await connectDB();
 
     const chatSession = await ChatSession.findOne({
-      _id: params.id,
+      _id: resolvedParams.id,
       userId: (session.user as any).id,
     });
 
@@ -50,9 +51,10 @@ export async function GET(
 // PUT /api/chats/[id] - Add a message to chat session
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const session = await getServerSession(authOptions);
     const { message } = await req.json();
 
@@ -64,14 +66,14 @@ export async function PUT(
     }
 
     // For guest users or guest chat IDs, return success without database operations
-    if (!session?.user || params.id.startsWith("guest_")) {
+    if (!session?.user || resolvedParams.id.startsWith("guest_")) {
       return NextResponse.json({ success: true, isGuest: true });
     }
 
     await connectDB();
 
     const chatSession = await ChatSession.findOne({
-      _id: params.id,
+      _id: resolvedParams.id,
       userId: (session.user as any).id,
     });
 
@@ -98,9 +100,10 @@ export async function PUT(
 // PATCH /api/chats/[id] - Update chat session title
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
@@ -117,7 +120,7 @@ export async function PATCH(
 
     const chatSession = await ChatSession.findOneAndUpdate(
       {
-        _id: params.id,
+        _id: resolvedParams.id,
         userId: (session.user as any).id,
       },
       { title, updatedAt: new Date() },
@@ -144,20 +147,21 @@ export async function PATCH(
 // DELETE /api/chats/[id] - Delete a chat session
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const resolvedParams = await params;
     const session = await getServerSession(authOptions);
 
     // For guest users or guest chat IDs, return success without database operations
-    if (!session?.user || params.id.startsWith("guest_")) {
+    if (!session?.user || resolvedParams.id.startsWith("guest_")) {
       return NextResponse.json({ success: true, isGuest: true });
     }
 
     await connectDB();
 
     const result = await ChatSession.deleteOne({
-      _id: params.id,
+      _id: resolvedParams.id,
       userId: (session.user as any).id,
     });
 
