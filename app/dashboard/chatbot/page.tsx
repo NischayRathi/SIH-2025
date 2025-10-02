@@ -49,6 +49,7 @@ export default function ChatbotPage() {
     setLoading(true);
 
     try {
+      console.log("🚀 Sending request to /api/chat with question:", input);
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -60,15 +61,20 @@ export default function ChatbotPage() {
           })),
         }),
       });
+      console.log("📡 Response status:", res.status);
 
       if (!res.ok) {
         throw new Error(`API error: ${res.status}`);
       }
 
       const data = await res.json();
+      console.log("📦 Response data:", data);
 
       if (data.error) {
-        throw new Error(data.error);
+        console.error("API returned error:", data.error, data.details);
+        throw new Error(
+          data.error + (data.details ? ` (${data.details})` : "")
+        );
       }
 
       const botMsg: Message = {
