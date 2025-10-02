@@ -58,9 +58,6 @@ export async function PUT(
     const session = await getServerSession(authOptions);
     const { message } = await req.json();
 
-    // Debug logging
-    console.log("Received message for validation:", JSON.stringify(message, null, 2));
-
     if (!message) {
       return NextResponse.json(
         { error: "Message is required" },
@@ -70,7 +67,6 @@ export async function PUT(
 
     // Validate message structure
     if (!message.text || typeof message.text !== 'string') {
-      console.error("Invalid message text:", message.text, typeof message.text);
       return NextResponse.json(
         { error: "Message text is required and must be a string" },
         { status: 400 }
@@ -78,7 +74,6 @@ export async function PUT(
     }
 
     if (!message.sender || !['user', 'bot'].includes(message.sender)) {
-      console.error("Invalid message sender:", message.sender);
       return NextResponse.json(
         { error: "Message sender is required and must be 'user' or 'bot'" },
         { status: 400 }
@@ -93,8 +88,6 @@ export async function PUT(
       usedRAG: Boolean(message.usedRAG),
       sourcesCount: Number(message.sourcesCount) || 0,
     };
-
-    console.log("Validated message:", JSON.stringify(validatedMessage, null, 2));
 
     // For guest users or guest chat IDs, return success without database operations
     if (!session?.user || resolvedParams.id.startsWith("guest_")) {
