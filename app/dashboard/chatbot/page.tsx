@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bot, Send, MessageSquare } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useChatContext } from "../ClientDashboardLayout";
 
 interface Message {
@@ -14,9 +15,8 @@ interface Message {
 }
 
 export default function ChatbotPage() {
+  const { data: session } = useSession();
   const chatContext = useChatContext();
-  const session = chatContext?.session;
-  const status = chatContext?.sessionStatus || 'loading';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loadingChats, setLoadingChats] = useState<Set<string>>(new Set());
@@ -28,8 +28,7 @@ export default function ChatbotPage() {
     ? loadingChats.has(currentChatId)
     : loadingChats.has("newchat");
 
-  // Memoize guest status to prevent unnecessary re-renders
-  const isGuest = status === 'unauthenticated' || !session?.user;
+  const isGuest = !session?.user;
 
   // Helper functions for managing loading state per chat
   const setLoadingForChat = (
@@ -48,9 +47,9 @@ export default function ChatbotPage() {
     });
   };
 
-  // Guest chat management functions (optimized to avoid session dependency)
+  // Guest chat management functions
   const saveGuestChat = (chatId: string, messages: Message[]) => {
-    if (typeof window !== "undefined") {
+    if (isGuest && typeof window !== "undefined") {
       const guestChats = JSON.parse(localStorage.getItem("guestChats") || "{}");
       guestChats[chatId] = {
         messages,
@@ -61,7 +60,7 @@ export default function ChatbotPage() {
   };
 
   const loadGuestChat = (chatId: string): Message[] => {
-    if (typeof window !== "undefined") {
+    if (isGuest && typeof window !== "undefined") {
       const guestChats = JSON.parse(localStorage.getItem("guestChats") || "{}");
       return guestChats[chatId]?.messages || [];
     }
@@ -89,19 +88,18 @@ export default function ChatbotPage() {
 
   // Load messages when currentChatId changes
   useEffect(() => {
-    // Don't load messages if session is still loading
-    if (status === 'loading') return;
-    
     if (currentChatId) {
       loadChatMessages(currentChatId);
-      // Clear the "newchat" loading state when switching to an existing chat
+    }
+    // Clear the "newchat" loading state when switching to an existing chat
+    if (currentChatId) {
       setLoadingChats((prev) => {
         const newSet = new Set(prev);
         newSet.delete("newchat");
         return newSet;
       });
     }
-  }, [currentChatId, status]); // Add status dependency to prevent loading during session check
+  }, [currentChatId]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -110,26 +108,21 @@ export default function ChatbotPage() {
 
   const loadChatMessages = async (chatId: string) => {
     try {
-      // Always check for guest chats first (faster than API call)
-      if (chatId.startsWith("guest_") || (status === 'unauthenticated' || isGuest)) {
+      if (isGuest || chatId.startsWith("guest_")) {
         // For guest users, load from localStorage
         const guestMessages = loadGuestChat(chatId);
         setMessages(guestMessages);
         return;
       }
 
-      // Only make API call for authenticated users with non-guest chats
-      if (status === 'authenticated' && session?.user) {
-        const response = await fetch(`/api/chats/${chatId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setMessages(data.chatSession?.messages || []);
-        }
+      // For registered users, load from database
+      const response = await fetch(`/api/chats/${chatId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data.chatSession?.messages || []);
       }
     } catch (error) {
       console.error("Error loading messages:", error);
-      // Fallback to empty messages on error
-      setMessages([]);
     }
   };
 
@@ -193,14 +186,13 @@ export default function ChatbotPage() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isSending || status === 'loading') return;
+    if (!input.trim() || isSending) return;
 
     setIsSending(true); // Prevent duplicate sends
     const currentInput = input;
     // Capture the current chat ID at the start to prevent race conditions
     let targetChatId = currentChatId;
     const messageSnapshot = [...messages]; // Capture current messages for this request
-    const isCurrentlyGuest = status === 'unauthenticated' || !session?.user; // Capture guest status
 
     const userMessage: Message = {
       sender: "user",
@@ -232,7 +224,7 @@ export default function ChatbotPage() {
         // Set loading for existing chat
         setLoadingForChat(targetChatId, true);
         // Add user message to existing chat session
-        if (isCurrentlyGuest || targetChatId?.startsWith("guest_")) {
+        if (isGuest || targetChatId?.startsWith("guest_")) {
           // For guest users, save to localStorage
           const currentMessages = [...messageSnapshot, userMessage];
           saveGuestChat(targetChatId!, currentMessages);
@@ -270,12 +262,13 @@ export default function ChatbotPage() {
 
         // Only add bot message to UI if we're still on the same chat
         // This prevents race condition where user switches chats mid-request
-        if (currentChatId === targetChatId) {
+        // For new chats, targetChatId will be set but currentChatId might still be null
+        if (currentChatId === targetChatId || (!currentChatId && targetChatId)) {
           setMessages((prev) => [...prev, botMessage]);
         }
 
         // Always save to the target chat regardless of current UI state
-        if (isCurrentlyGuest || targetChatId?.startsWith("guest_")) {
+        if (isGuest || targetChatId?.startsWith("guest_")) {
           // For guest users, save to localStorage
           const updatedMessages = [...messageSnapshot, userMessage, botMessage];
           saveGuestChat(targetChatId!, updatedMessages);
@@ -293,7 +286,8 @@ export default function ChatbotPage() {
     } catch (error) {
       console.error("Error sending message:", error);
       // Only show error in UI if we're still on the same chat
-      if (currentChatId === targetChatId) {
+      // For new chats, targetChatId will be set but currentChatId might still be null
+      if (currentChatId === targetChatId || (!currentChatId && targetChatId)) {
         const errorMessage: Message = {
           sender: "bot",
           text: "Sorry, I encountered an error. Please try again.",
@@ -331,10 +325,10 @@ export default function ChatbotPage() {
     }
   }, []); // Run only on mount
 
-  // Additional cleanup when session status changes (only when actually changing to unauthenticated)
+  // Additional cleanup when session changes
   useEffect(() => {
-    if (typeof window !== "undefined" && status === 'unauthenticated') {
-      // Check for recent logout when becoming guest - but only once per status change
+    if (typeof window !== "undefined" && !session?.user) {
+      // Check for recent logout when becoming guest
       const lastLogoutTime = localStorage.getItem("lastLogoutTime");
       const lastGuestChatCheck = localStorage.getItem("lastGuestChatCheck");
 
@@ -352,17 +346,7 @@ export default function ChatbotPage() {
         }
       }
     }
-  }, [status, chatContext]); // Use status instead of session to prevent excessive calls
-
-  // Show loading state while session is being determined
-  if (status === 'loading') {
-    return (
-      <div className="flex flex-col bg-white dark:bg-gray-800 -m-6 h-[calc(100vh-64px)] items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full"></div>
-        <p className="mt-4 text-gray-600 dark:text-gray-400">Loading chat...</p>
-      </div>
-    );
-  }
+  }, [session, chatContext]);
 
   return (
     <div className="flex flex-col bg-white dark:bg-gray-800 -m-6 h-[calc(100vh-64px)]">
