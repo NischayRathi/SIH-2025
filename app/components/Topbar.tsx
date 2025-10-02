@@ -15,8 +15,12 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Allow guest access - don't automatically redirect to login
-  // const isGuest = !session?.user;
+  // Redirect to login if no session
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
 
   // Show loading state while session is loading
   if (status === "loading") {
@@ -34,7 +38,7 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
             )}
           </button>
           <h2 className="text-xl text-green-700 dark:text-green-400 font-semibold">
-            Prakriti
+            Dashboard
           </h2>
         </div>
         <div className="flex items-center gap-4">
@@ -48,18 +52,16 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
     );
   }
 
-  // Support both authenticated users and guests
-  const userName = session?.user?.name || "Guest";
+  // Don't render if no session
+  if (!session) {
+    return null;
+  }
+
+  const userName = session.user?.name || "Guest";
   const initial = userName.charAt(0).toUpperCase();
 
   const handleLogout = async () => {
-    if (session?.user) {
-      // Authenticated user logout
-      await handleCompleteLogout();
-    } else {
-      // Guest user - redirect to login
-      router.push("/login");
-    }
+    await handleCompleteLogout();
   };
 
   return (
@@ -78,7 +80,7 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
           )}
         </button>
         <h2 className="text-xl text-green-700 dark:text-green-400 font-semibold">
-          Prakriti
+          Dashboard
         </h2>
       </div>
 
@@ -97,7 +99,7 @@ export default function Topbar({ open, setOpen }: TopbarProps) {
           <button
             onClick={handleLogout}
             className="p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 transition-colors"
-            title={session?.user ? "Logout" : "Login"}
+            title="Logout"
           >
             <LogOut size={20} />
           </button>
