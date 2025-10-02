@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bot, Send, MessageSquare } from "lucide-react";
-import { useSession } from "next-auth/react";
 import { useChatContext } from "../ClientDashboardLayout";
 
 interface Message {
@@ -15,8 +14,9 @@ interface Message {
 }
 
 export default function ChatbotPage() {
-  const { data: session, status } = useSession({ required: false });
   const chatContext = useChatContext();
+  const session = chatContext?.session;
+  const status = chatContext?.sessionStatus || 'loading';
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loadingChats, setLoadingChats] = useState<Set<string>>(new Set());

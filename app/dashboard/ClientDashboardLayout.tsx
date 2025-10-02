@@ -7,13 +7,15 @@ import { useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 
-// Create context for chat functionality
+// Create context for chat functionality and session
 const ChatContext = createContext<{
   currentChatId: string | null;
   onChatSelect: (chatId: string) => void;
   onNewChat: () => void;
   onDeleteChat: (chatId: string) => void;
   refreshChats: () => void;
+  session: any;
+  sessionStatus: string;
 } | null>(null);
 
 export const useChatContext = () => useContext(ChatContext);
@@ -26,7 +28,11 @@ export default function ClientDashboardLayout({
   const [open, setOpen] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const { data: session, status } = useSession();
+  const { data: session, status } = useSession({
+    required: false,
+    refetchInterval: 0, // Disable automatic refetching
+    refetchOnWindowFocus: false, // Disable refetch on window focus
+  });
   const router = useRouter();
 
   // Chat handlers
@@ -90,6 +96,8 @@ export default function ClientDashboardLayout({
     onNewChat: handleNewChat,
     onDeleteChat: handleDeleteChat,
     refreshChats: handleRefreshChats,
+    session,
+    sessionStatus: status,
   };
 
   return (
@@ -116,7 +124,7 @@ export default function ClientDashboardLayout({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
-          <Topbar open={open} setOpen={setOpen} />
+          <Topbar open={open} setOpen={setOpen} session={session} status={status} />
 
           {/* Page content */}
           <main className="flex-1 p-6 overflow-y-auto">{children}</main>
