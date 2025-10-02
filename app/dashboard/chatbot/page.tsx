@@ -260,10 +260,10 @@ export default function ChatbotPage() {
           sourcesCount: data.sourcesCount,
         };
 
-        // Only add bot message to UI if we're still on the same chat
-        // This prevents race condition where user switches chats mid-request
-        // For new chats, targetChatId will be set but currentChatId might still be null
-        if (currentChatId === targetChatId || (!currentChatId && targetChatId)) {
+        // Add bot message to UI
+        // For new chats: always show (currentChatId is null)  
+        // For existing chats: only show if still on same chat
+        if (!currentChatId || currentChatId === targetChatId) {
           setMessages((prev) => [...prev, botMessage]);
         }
 
@@ -285,9 +285,10 @@ export default function ChatbotPage() {
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Only show error in UI if we're still on the same chat
-      // For new chats, targetChatId will be set but currentChatId might still be null
-      if (currentChatId === targetChatId || (!currentChatId && targetChatId)) {
+      // Show error in UI
+      // For new chats: always show (currentChatId is null)
+      // For existing chats: only show if still on same chat  
+      if (!currentChatId || currentChatId === targetChatId) {
         const errorMessage: Message = {
           sender: "bot",
           text: "Sorry, I encountered an error. Please try again.",
