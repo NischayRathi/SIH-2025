@@ -1,7 +1,7 @@
 "use client";
 
 import { Bell, Menu, X, LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { handleCompleteLogout } from "@/lib/logout";
@@ -9,11 +9,10 @@ import { handleCompleteLogout } from "@/lib/logout";
 type TopbarProps = {
   open: boolean;
   setOpen: (val: boolean) => void;
-  session: any;
-  status: string;
 };
 
-export default function Topbar({ open, setOpen, session, status }: TopbarProps) {
+export default function Topbar({ open, setOpen }: TopbarProps) {
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   // Allow guest access - don't automatically redirect to login

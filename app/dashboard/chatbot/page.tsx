@@ -254,16 +254,15 @@ export default function ChatbotPage() {
         const data = await response.json();
         const botMessage: Message = {
           sender: "bot",
-          text: data.answer,
+          text: data.answer || "I apologize, but I couldn't generate a response. Please try again.",
           timestamp: new Date(),
-          usedRAG: data.usedRAG,
-          sourcesCount: data.sourcesCount,
+          usedRAG: Boolean(data.usedRAG),
+          sourcesCount: Number(data.sourcesCount) || 0,
         };
 
-        // Add bot message to UI
-        // For new chats: always show (currentChatId is null)  
-        // For existing chats: only show if still on same chat
-        if (!currentChatId || currentChatId === targetChatId) {
+        // Only add bot message to UI if we're still on the same chat
+        // This prevents race condition where user switches chats mid-request
+        if (currentChatId === targetChatId) {
           setMessages((prev) => [...prev, botMessage]);
         }
 
@@ -285,10 +284,8 @@ export default function ChatbotPage() {
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      // Show error in UI
-      // For new chats: always show (currentChatId is null)
-      // For existing chats: only show if still on same chat  
-      if (!currentChatId || currentChatId === targetChatId) {
+      // Only show error in UI if we're still on the same chat
+      if (currentChatId === targetChatId) {
         const errorMessage: Message = {
           sender: "bot",
           text: "Sorry, I encountered an error. Please try again.",
